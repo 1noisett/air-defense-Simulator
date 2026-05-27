@@ -5,7 +5,7 @@ from typing import Final
 
 from physics.entity import Entity
 from physics.integrator import Integrator
-from physics.threat import Threat
+from physics.targeting import TargetSource
 from physics.vector import Vector2D
 
 ZERO_ACCELERATION: Final[Vector2D] = Vector2D(0.0, 0.0)
@@ -44,7 +44,7 @@ class Interceptor(Entity):
         position: Vector2D,
         velocity: Vector2D,
         integrator: Integrator,
-        target: Threat,
+        target: TargetSource,
         N: float = 4.0,
         max_acceleration: float = 400.0,
     ) -> None:
@@ -54,7 +54,10 @@ class Interceptor(Entity):
             position: Initial position (m).
             velocity: Initial velocity (m/s).
             integrator: Numerical integrator for trajectory propagation.
-            target: The threat being intercepted. Read each guidance cycle.
+            target: Kinematic source being intercepted (any TargetSource — a
+                Threat for ground-truth guidance, or a sensor Track for
+                estimate-based guidance). Its position/velocity are read each
+                guidance cycle.
             N: Navigation constant (dimensionless). Higher N gives faster
                 convergence but is more sensitive to noise. Typical range: 3–5.
             max_acceleration: Saturation limit (m/s²). Clips the PN command

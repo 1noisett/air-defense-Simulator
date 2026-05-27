@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import Protocol
 
 from physics.entity import Entity
 from simulation.runner import SimulationOutcome
+
+
+class _ResolvableController(Protocol):
+    """Structural type for any controller that can report full resolution.
+
+    Declared locally so simulation/ stays free of a battery/ import (layering).
+    """
+
+    def all_resolved(self) -> bool: ...
 
 
 def interception_scenario_stop(
@@ -49,6 +59,37 @@ def interception_scenario_stop(
             return SimulationOutcome.HIT
         if threat.position.y < 0.0:
             return SimulationOutcome.THREAT_IMPACTED_GROUND
+        return SimulationOutcome.RUNNING
+
+    return _condition
+
+
+def all_threats_resolved_stop(
+    controller: _ResolvableController,
+) -> Callable[[dict[str, Entity], float], SimulationOutcome]:
+    """Generate a stop condition for multi-threat battery scenarios.
+
+    The simulation halts once the controller reports that no threat remains
+    in flight (all have been neutralized or have impacted).
+
+    Args:
+        controller: Any object exposing all_resolved() -> bool — in practice a
+            battery.controller.BatteryController. Typed structurally so this
+            module need not import the battery layer.
+
+    Returns:
+        A closure (entities, t) → SimulationOutcome returning ALL_RESOLVED once
+        controller.all_resolved() is True, otherwise RUNNING.
+
+    Note:
+        The closure ignores entities/t and defers entirely to the controller's
+        own disposition bookkeeping. O(1) per evaluation (plus the controller's
+        own all_resolved cost).
+    """
+
+    def _condition(entities: dict[str, Entity], t: float) -> SimulationOutcome:
+        if controller.all_resolved():
+            return SimulationOutcome.ALL_RESOLVED
         return SimulationOutcome.RUNNING
 
     return _condition
