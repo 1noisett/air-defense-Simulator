@@ -39,8 +39,14 @@ class Threat(Entity):
         """
         super().__init__(position, velocity, integrator)
 
-    def compute_acceleration(self) -> Vector2D:
+    def compute_acceleration(self, position: Vector2D, velocity: Vector2D) -> Vector2D:
         """Return gravitational acceleration only.
+
+        Args:
+            position: Position at this integration stage (m). Not used —
+                uniform gravity is independent of altitude in this model.
+            velocity: Velocity at this integration stage (m/s). Not used —
+                drag forces are out of scope for the ballistic model.
 
         Returns:
             GRAVITY constant: Vector2D(0.0, -9.81) (m/s²).

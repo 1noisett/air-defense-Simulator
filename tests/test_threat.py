@@ -120,13 +120,14 @@ def test_time_of_flight_matches_analytical(trajectory: tuple[float, float, float
 
 
 def test_compute_acceleration_is_gravity() -> None:
-    """compute_acceleration() must return exactly (0, -9.81) m/s²."""
+    """compute_acceleration() must return exactly (0, -9.81) m/s² regardless of state."""
     threat = Threat(
         position=Vector2D(0.0, 100.0),
         velocity=Vector2D(0.0, 0.0),
         integrator=EulerIntegrator(),
     )
-    acc = threat.compute_acceleration()
+    # Gravity is state-independent; arguments are required by the interface but ignored.
+    acc = threat.compute_acceleration(Vector2D(0.0, 100.0), Vector2D(0.0, 0.0))
     assert acc == Vector2D(0.0, -9.81)
 
 

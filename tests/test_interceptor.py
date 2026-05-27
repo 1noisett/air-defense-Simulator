@@ -84,19 +84,20 @@ def test_compute_acceleration_zero_when_at_target() -> None:
     This guards the division-by-|r|² in the LOS-rate formula.
     """
     shared_pos = Vector2D(500.0, 300.0)
+    shared_vel = Vector2D(50.0, -30.0)
     threat = Threat(
         position=shared_pos,
-        velocity=Vector2D(50.0, -30.0),
+        velocity=shared_vel,
         integrator=EulerIntegrator(),
     )
     interceptor = Interceptor(
         position=shared_pos,
-        velocity=Vector2D(50.0, -30.0),
+        velocity=shared_vel,
         integrator=EulerIntegrator(),
         target=threat,
         N=4.0,
     )
-    assert interceptor.compute_acceleration() == Vector2D(0.0, 0.0)
+    assert interceptor.compute_acceleration(shared_pos, shared_vel) == Vector2D(0.0, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -105,20 +106,22 @@ def test_compute_acceleration_zero_when_at_target() -> None:
 
 def test_acceleration_magnitude_within_limit() -> None:
     """|a_cmd| must never exceed max_acceleration regardless of geometry."""
+    p0 = Vector2D(0.0, 0.0)
+    v0 = Vector2D(300.0, 300.0)
     threat = Threat(
         position=Vector2D(100.0, 100.0),
         velocity=Vector2D(-50.0, -80.0),
         integrator=EulerIntegrator(),
     )
     interceptor = Interceptor(
-        position=Vector2D(0.0, 0.0),
-        velocity=Vector2D(300.0, 300.0),
+        position=p0,
+        velocity=v0,
         integrator=EulerIntegrator(),
         target=threat,
         N=4.0,
         max_acceleration=400.0,
     )
-    acc = interceptor.compute_acceleration()
+    acc = interceptor.compute_acceleration(p0, v0)
     assert acc.norm() <= 400.0 + 1e-9
 
 
@@ -128,20 +131,22 @@ def test_acceleration_perpendicular_to_los() -> None:
     PN theory requires the acceleration to lie in the plane perpendicular to
     the LOS. In 2D this means r · a_cmd = 0.
     """
+    p0 = Vector2D(0.0, 0.0)
+    v0 = Vector2D(150.0, 80.0)
     threat = Threat(
         position=Vector2D(1000.0, 0.0),
         velocity=Vector2D(-200.0, 50.0),
         integrator=EulerIntegrator(),
     )
     interceptor = Interceptor(
-        position=Vector2D(0.0, 0.0),
-        velocity=Vector2D(150.0, 80.0),
+        position=p0,
+        velocity=v0,
         integrator=EulerIntegrator(),
         target=threat,
         N=4.0,
     )
-    r = threat.position - interceptor.position
-    acc = interceptor.compute_acceleration()
+    r = threat.position - p0
+    acc = interceptor.compute_acceleration(p0, v0)
     assert r.dot(acc) == pytest.approx(0.0, abs=1e-9)
 
 
@@ -153,17 +158,19 @@ def test_zero_los_rate_gives_zero_acceleration() -> None:
     """
     # Target directly to the right, moving further right at same vertical speed.
     # v_rel = (0, 0) → λ̇ = r.cross(v_rel) / |r|² = 0
+    p0 = Vector2D(0.0, 0.0)
+    v0 = Vector2D(100.0, 0.0)
     threat = Threat(
         position=Vector2D(500.0, 0.0),
         velocity=Vector2D(100.0, 0.0),
         integrator=EulerIntegrator(),
     )
     interceptor = Interceptor(
-        position=Vector2D(0.0, 0.0),
-        velocity=Vector2D(100.0, 0.0),  # same velocity → v_rel = (0, 0)
+        position=p0,
+        velocity=v0,  # same velocity as threat → v_rel = (0, 0)
         integrator=EulerIntegrator(),
         target=threat,
         N=4.0,
     )
-    acc = interceptor.compute_acceleration()
+    acc = interceptor.compute_acceleration(p0, v0)
     assert acc.norm() == pytest.approx(0.0, abs=1e-12)

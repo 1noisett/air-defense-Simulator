@@ -67,11 +67,18 @@ class Interceptor(Entity):
         self._N = N
         self._max_acceleration = max_acceleration
 
-    def compute_acceleration(self) -> Vector2D:
-        """Return the PN guidance acceleration command for this time step.
+    def compute_acceleration(self, position: Vector2D, velocity: Vector2D) -> Vector2D:
+        """Return the PN guidance acceleration command at the given kinematic state.
 
-        Implements classical Proportional Navigation in 2D. All quantities
-        are computed from the current kinematic state of self and self._target.
+        Implements classical Proportional Navigation in 2D. The interceptor's
+        state is taken from the arguments (not self.position / self.velocity)
+        so that multi-stage integrators can call this at intermediate states.
+        The target's state is read from self._target and treated as fixed for
+        the duration of the integration step.
+
+        Args:
+            position: Interceptor position at this integration stage (m).
+            velocity: Interceptor velocity at this integration stage (m/s).
 
         Returns:
             Commanded acceleration vector (m/s²), magnitude ≤ max_acceleration.
@@ -94,7 +101,9 @@ class Interceptor(Entity):
             automatically; no explicit branch is needed.
         """
         # --- Step 1: LOS vector (interceptor → target, m) -------------------
-        r: Vector2D = self._target.position - self.position
+        # Uses the argument `position`, not self.position — critical for RK4
+        # correctness when called at intermediate integration stages.
+        r: Vector2D = self._target.position - position
 
         # Guard: degenerate case — already at target or zero-range geometry.
         range_sq: float = r.dot(r)
@@ -104,7 +113,8 @@ class Interceptor(Entity):
         range_m: float = math.sqrt(range_sq)
 
         # --- Step 2: Relative velocity (target − interceptor, m/s) ----------
-        v_rel: Vector2D = self._target.velocity - self.velocity
+        # Uses the argument `velocity`, not self.velocity — same reason as above.
+        v_rel: Vector2D = self._target.velocity - velocity
 
         # --- Step 3: Closing speed -------------------------------------------
         # V_c = −(r · v_rel) / |r|
@@ -133,8 +143,7 @@ class Interceptor(Entity):
         a_cmd: Vector2D = n_perp * a_scalar
 
         # --- Step 7: Saturate to physical acceleration limit ----------------
-        # |a_cmd| = |a_scalar| since |n_perp| = 1, so the magnitude equals the
-        # absolute value of the scalar command. Clip if it exceeds max_acceleration.
+        # |a_cmd| = |a_scalar| since |n_perp| = 1. Clip if needed.
         a_magnitude: float = abs(a_scalar)
         if a_magnitude > self._max_acceleration:
             a_cmd = n_perp * (math.copysign(self._max_acceleration, a_scalar))

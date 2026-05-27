@@ -13,8 +13,11 @@ class Entity(ABC):
     to an injected Integrator, keeping integration strategy decoupled from
     entity logic.
 
-    Subclasses must implement compute_acceleration() to define the forces
-    acting on the entity.
+    Subclasses must implement compute_acceleration(position, velocity) to define
+    the forces acting on the entity at any given kinematic state. The method
+    receives explicit position and velocity arguments so that multi-stage
+    integrators (e.g., RK4) can evaluate it at intermediate states without
+    mutating self.
 
     Attributes:
         position: Current position in the simulation plane (m).
@@ -43,24 +46,36 @@ class Entity(ABC):
     def update(self, dt: float) -> None:
         """Advance entity state by one time step.
 
-        Computes acceleration via compute_acceleration(), then delegates the
-        integration to self._integrator. Mutates self.position and
-        self.velocity in place (replacing with new Vector2D instances).
+        Passes self.compute_acceleration as a callable to the integrator.
+        The integrator calls it with intermediate (position, velocity) pairs
+        as needed by its algorithm. self.position and self.velocity are only
+        updated once, at the end, with the final result.
 
         Args:
             dt: Time step duration (s). Must be positive.
         """
-        acceleration = self.compute_acceleration()
         self.position, self.velocity = self._integrator.step(
-            self.position, self.velocity, acceleration, dt
+            self.position, self.velocity, self.compute_acceleration, dt
         )
 
     @abstractmethod
-    def compute_acceleration(self) -> Vector2D:
-        """Return the net acceleration acting on this entity at the current instant.
+    def compute_acceleration(self, position: Vector2D, velocity: Vector2D) -> Vector2D:
+        """Return the net acceleration at the given kinematic state.
 
-        Called once per update(). Subclasses implement domain-specific force
-        models (gravity, thrust, proportional navigation, etc.).
+        Called by the integrator once per stage. Subclasses implement
+        domain-specific force models (gravity, thrust, proportional navigation).
+
+        The arguments represent the state at a particular integration stage —
+        not necessarily the entity's current self.position / self.velocity.
+        Implementations must use these arguments, not self.position, to
+        ensure correctness with multi-stage integrators.
+
+        Entity parameters fixed during the step (e.g., target position,
+        navigation constant) may still be read from self.
+
+        Args:
+            position: Position at this integration stage (m).
+            velocity: Velocity at this integration stage (m/s).
 
         Returns:
             Net acceleration vector (m/s²).
