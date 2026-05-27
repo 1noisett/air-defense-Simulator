@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from simulation.conditions import all_threats_resolved_stop
 from simulation.recorder import TrajectoryRecorder
@@ -92,3 +93,10 @@ def simulate(req: ScenarioRequest) -> SimulationResponse:
         inventory_remaining=report.inventory_remaining,
         report_summary=build_report_summary(report),
     )
+
+
+# Static files mount MUST come after all /api/* route declarations.
+# FastAPI resolves routes in registration order; a "/" mount registered before
+# the API routes would intercept /api/simulate and return a 404 asset response
+# instead of executing the simulation endpoint.
+app.mount("/", StaticFiles(directory="web", html=True), name="web")

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Air Defense Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Air Defense Simulator</h1>
+    </header>
+    <main>
+        <aside id="controls">
+            <label>System:
+                <select id="system-select"></select>
+            </label>
+            <label>Threats (1–5):
+                <input type="number" id="n-threats" value="3" min="1" max="5">
+            </label>
+            <label>Inventory (0–5):
+                <input type="number" id="inventory" value="2" min="0" max="5">
+            </label>
+            <label>Angle (15–75 °):
+                <input type="number" id="launch-angle" value="45" min="15" max="75">
+            </label>
+            <label>Zone width (100–1000 m):
+                <input type="number" id="zone-width" value="350" min="100" max="1000">
+            </label>
+            <button id="simulate-btn">Simulate</button>
+            <section id="results" hidden>
+                <h2>— Result —</h2>
+                <p>Neutralized: <span id="r-neutralized"></span></p>
+                <p>Leaked:      <span id="r-leaked"></span></p>
+                <p>Safe:        <span id="r-safe"></span></p>
+                <p>Inventory:   <span id="r-inventory"></span></p>
+                <p>Time:        <span id="r-time"></span> s</p>
+            </section>
+            <p id="error-msg" hidden></p>
+        </aside>
+        <section id="canvas-area">
+            <canvas id="sim-canvas" width="800" height="500"></canvas>
+        </section>
+    </main>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
