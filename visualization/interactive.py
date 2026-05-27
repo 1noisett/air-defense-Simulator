@@ -407,7 +407,12 @@ class InteractiveSimulator:
         self.fig.canvas.draw_idle()
 
     def _stop_animation(self) -> None:
-        """Stop and drop the current FuncAnimation, if any."""
-        if self._anim is not None:
+        """Detiene y libera la animación actual si existe. Idempotente: seguro de llamar
+        varias veces o cuando no hay animación activa."""
+        if self._anim is None:
+            return
+        try:
             self._anim.event_source.stop()
-            self._anim = None
+        except AttributeError:
+            pass  # event_source ya colectado por GC; nada que parar
+        self._anim = None
