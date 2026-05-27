@@ -4,6 +4,37 @@ from simulation.recorder import Snapshot, TrajectoryRecorder
 
 _WRITERS = {".gif": "pillow", ".mp4": "ffmpeg"}
 
+ZoneBounds = tuple[float, float, float, float]
+"""(x_min, x_max, y_min, y_max) of a rectangular region to overlay (m)."""
+
+
+def _draw_zone(ax: object, zone_bounds: ZoneBounds) -> None:
+    """Shade a rectangular protected zone behind the trajectories.
+
+    Args:
+        ax: A matplotlib Axes to draw on.
+        zone_bounds: (x_min, x_max, y_min, y_max) of the zone (m).
+
+    Note:
+        Plain bounds are accepted (not a battery.ProtectedZone) so the renderer
+        stays independent of the battery layer.
+    """
+    from matplotlib.patches import Rectangle
+
+    x_min, x_max, y_min, y_max = zone_bounds
+    ax.add_patch(  # type: ignore[attr-defined]
+        Rectangle(
+            (x_min, y_min),
+            x_max - x_min,
+            y_max - y_min,
+            facecolor="#d62728",
+            edgecolor="#d62728",
+            alpha=0.18,
+            zorder=0,
+            label="protected zone",
+        )
+    )
+
 # Colour cycle for up to N entities; falls back to matplotlib's default beyond that.
 _COLOURS = [
     "#e6194b",  # red    — threat
@@ -47,6 +78,7 @@ class TrajectoryPlotter:
         self,
         title: str = "Trajectory Plot",
         filepath: str | None = None,
+        zone_bounds: ZoneBounds | None = None,
     ) -> None:
         """Render all trajectories as a 2-D position plot.
 
@@ -60,6 +92,8 @@ class TrajectoryPlotter:
                 Any format supported by matplotlib.savefig is accepted (.png,
                 .pdf, .svg, …). If None, calls plt.show() — opens an interactive
                 window.
+            zone_bounds: Optional (x_min, x_max, y_min, y_max) of a protected zone
+                to shade behind the trajectories (m). None draws no zone.
 
         Raises:
             ValueError: If the recorder contains no entities.
@@ -77,6 +111,9 @@ class TrajectoryPlotter:
             raise ValueError("TrajectoryRecorder contains no recorded entities.")
 
         fig, ax = plt.subplots(figsize=(10, 6))
+
+        if zone_bounds is not None:
+            _draw_zone(ax, zone_bounds)
 
         for idx, entity_id in enumerate(ids):
             trajectory: list[Snapshot] = self._recorder.get_trajectory(entity_id)
@@ -121,6 +158,7 @@ class TrajectoryPlotter:
         self,
         interval_ms: int = 50,
         filepath: str | None = None,
+        zone_bounds: ZoneBounds | None = None,
     ) -> None:
         """Produce a frame-by-frame animation of all entity trajectories.
 
@@ -142,6 +180,8 @@ class TrajectoryPlotter:
                 ".mp4" → writer='ffmpeg' (ffmpeg binary must be on PATH);
                     raises RuntimeError with a clear message if ffmpeg is absent.
                 None → opens an interactive window via plt.show().
+            zone_bounds: Optional (x_min, x_max, y_min, y_max) of a protected zone
+                to shade behind the trajectories (m). None draws no zone.
 
         Raises:
             ValueError: If the recorder contains no entities.
@@ -185,6 +225,9 @@ class TrajectoryPlotter:
         ax.set_ylabel("Altitude (m)")
         ax.grid(True, linewidth=0.4, alpha=0.6)
         ax.axhline(0, color="gray", linewidth=0.5)
+
+        if zone_bounds is not None:
+            _draw_zone(ax, zone_bounds)
 
         # Initialise one trail line and one position marker per entity
         trails: dict[str, object] = {}
