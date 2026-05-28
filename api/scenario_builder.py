@@ -17,8 +17,8 @@ from api.schemas import ScenarioRequest, SystemPreset
 # Scenario geometry constants — mirrored from visualization/interactive.py but not imported
 # from there, keeping api/ decoupled from the matplotlib visualization layer.
 _THREAT_SPEED: float = 100.0     # m/s — fixed for all threats (pedagogical)
-_THREAT_SPACING: float = 300.0   # m  — horizontal gap between threat origins
-_BATTERY_OFFSET: float = 200.0   # m  — battery sits this far right of the zone centroid
+_THREAT_SPACING: float = 600.0   # m  — horizontal gap between threat origins; x2 distance for more realistic geographic separation
+_BATTERY_OFFSET: float = 400.0   # m  — battery sits this far right of the zone centroid; x2 distance for more realistic geographic separation
 _GRAVITY: float = 9.81
 
 DT: float = 0.01
@@ -54,6 +54,7 @@ def build_scenario(
     vy = _THREAT_SPEED * math.sin(angle_rad)
     rng = _THREAT_SPEED ** 2 * math.sin(2.0 * angle_rad) / _GRAVITY
 
+    maneuver_amplitude = (req.maneuver_intensity / 100.0) * 8.0
     threats: dict[str, Threat] = {}
     for i in range(req.n_threats):
         tid = f"threat_{i + 1:03d}"
@@ -61,6 +62,8 @@ def build_scenario(
             Vector2D(i * _THREAT_SPACING, 0.0),
             Vector2D(vx, vy),
             integrator,
+            maneuver_amplitude=maneuver_amplitude,
+            maneuver_frequency=1.5 * (1.0 + 0.05 * i),
         )
 
     x_center = rng + _THREAT_SPACING * (req.n_threats - 1) / 2.0

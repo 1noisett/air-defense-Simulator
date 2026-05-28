@@ -1,4 +1,4 @@
-import { animate } from './canvas.js';
+import { animate, togglePause, setSpeed } from './canvas.js';
 import { patriotIcon, davidsSlingIcon, irisTIcon } from './assets/icons.js';
 
 const btn = document.getElementById('simulate-btn');
@@ -23,6 +23,7 @@ function setupSliders() {
         { id: 'inventory',    valId: 'inventory-val',    fmt: v => v },
         { id: 'launch-angle', valId: 'launch-angle-val', fmt: v => `${v}°` },
         { id: 'zone-width',   valId: 'zone-width-val',   fmt: v => `${v} m` },
+        { id: 'maneuver',     valId: 'maneuver-val',     fmt: v => `${v}%` },
     ];
     for (const { id, valId, fmt } of sliders) {
         const input = document.getElementById(id);
@@ -75,11 +76,12 @@ function selectCard(card) {
 function readInputs() {
     const selected = document.querySelector('.system-card.selected');
     return {
-        system_id:        selected?.dataset.systemId ?? '',
-        n_threats:        parseInt(document.getElementById('n-threats').value, 10),
-        inventory:        parseInt(document.getElementById('inventory').value, 10),
-        launch_angle_deg: parseFloat(document.getElementById('launch-angle').value),
-        zone_width:       parseFloat(document.getElementById('zone-width').value),
+        system_id:         selected?.dataset.systemId ?? '',
+        n_threats:         parseInt(document.getElementById('n-threats').value, 10),
+        inventory:         parseInt(document.getElementById('inventory').value, 10),
+        launch_angle_deg:  parseFloat(document.getElementById('launch-angle').value),
+        zone_width:        parseFloat(document.getElementById('zone-width').value),
+        maneuver_intensity: parseFloat(document.getElementById('maneuver').value),
     };
 }
 
@@ -131,8 +133,30 @@ function clearError() {
     errorMsg.textContent = '';
 }
 
+// ── Canvas controls ───────────────────────────────────────────────────
+
+function setupCanvasControls() {
+    const pauseBtn    = document.getElementById('pause-btn');
+    const speedSlider = document.getElementById('speed-slider');
+    const speedLabel  = document.getElementById('speed-label');
+
+    pauseBtn.addEventListener('click', () => {
+        togglePause();
+        pauseBtn.textContent = pauseBtn.textContent === '⏸' ? '▶' : '⏸';
+    });
+
+    speedSlider.addEventListener('input', () => {
+        const v = parseFloat(speedSlider.value);
+        setSpeed(v);
+        speedLabel.textContent = `${v}×`;
+    });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', () => {
     setupSliders();
+    setupCanvasControls();
     loadSystems();
     btn.addEventListener('click', runSimulation);
 });

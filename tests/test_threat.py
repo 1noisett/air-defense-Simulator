@@ -140,6 +140,36 @@ def test_initial_state_unchanged_before_update() -> None:
     assert threat.velocity == v0
 
 
+def test_threat_with_maneuver() -> None:
+    """Maneuvering threat differs from ballistic and is deterministic.
+
+    With maneuver_amplitude=5.0 and maneuver_frequency=2.0, the sinusoidal
+    lateral perturbation accumulates over ~14 s of flight, shifting the
+    horizontal range away from the pure ballistic value (≈ 1019.37 m).
+    Running twice from the same initial conditions must yield identical results.
+    """
+    def _run_maneuvering() -> float:
+        threat = Threat(
+            position=Vector2D(0.0, 0.0),
+            velocity=Vector2D(VX0, VY0),
+            integrator=EulerIntegrator(),
+            maneuver_amplitude=5.0,
+            maneuver_frequency=2.0,
+        )
+        while threat.position.y >= 0.0:
+            threat.update(DT)
+        return threat.position.x
+
+    range1 = _run_maneuvering()
+    range2 = _run_maneuvering()
+
+    assert range1 == range2, "Maneuvering trajectory must be deterministic"
+    assert not math.isclose(range1, ANALYTICAL_RANGE, rel_tol=1e-2), (
+        f"Maneuvering range {range1:.2f} m is too close to ballistic "
+        f"{ANALYTICAL_RANGE:.2f} m — lateral perturbation has no effect"
+    )
+
+
 def test_single_update_step_matches_euler() -> None:
     """One update(dt) step must match the explicit Euler formula by hand.
 

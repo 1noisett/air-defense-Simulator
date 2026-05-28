@@ -1,5 +1,5 @@
-const CANVAS_W = 800;
-const CANVAS_H = 500;
+const CANVAS_W = 1600;
+const CANVAS_H = 800;
 const MARGIN = 40;
 
 const COLORS = {
@@ -16,7 +16,24 @@ const COLORS = {
 const canvas = document.getElementById('sim-canvas');
 const ctx = canvas.getContext('2d');
 
-let _rafId = null;
+// ── Module state ──────────────────────────────────────────────────────
+let _rafId           = null;
+let _paused          = false;
+let _speedMultiplier = 1.0;
+let _activeExplosions = [];
+let _exploredThreats  = new Set();
+
+// ── Public controls ───────────────────────────────────────────────────
+
+export function togglePause() {
+    _paused = !_paused;
+}
+
+export function setSpeed(multiplier) {
+    _speedMultiplier = multiplier;
+}
+
+// ── Main animation entry point ────────────────────────────────────────
 
 export function animate(response) {
     if (_rafId !== null) {
@@ -24,29 +41,39 @@ export function animate(response) {
         _rafId = null;
     }
 
+    _paused = false;
+    _activeExplosions = [];
+    _exploredThreats = new Set();
+
     const bounds = computeBounds(response);
     const transform = buildTransform(bounds);
-    // Defensive: prevent freeze if final_time is 0 or near-zero
+    // Base scale: full animation plays in 5 wall-clock seconds at 1×
     const timeScale = Math.max(response.final_time / 5.0, 0.1);
 
-    // Initialize snapshot index cache to 0 for every entity
     const indexCache = {};
     for (const traj of response.trajectories) {
         indexCache[traj.entity_id] = 0;
     }
 
-    let startTs = null;
+    let _lastTs = null;
+    let _currentSimTime = 0;
 
     function frame(ts) {
-        if (startTs === null) startTs = ts;
-        const simTime = Math.min(
-            ((ts - startTs) / 1000) * timeScale,
-            response.final_time,
-        );
+        if (_lastTs === null) _lastTs = ts;
+        const wallDt = (ts - _lastTs) / 1000;
+        _lastTs = ts;
 
-        drawScene(simTime, response, transform, indexCache);
+        if (!_paused) {
+            _currentSimTime = Math.min(
+                _currentSimTime + wallDt * timeScale * _speedMultiplier,
+                response.final_time,
+            );
+        }
 
-        if (simTime < response.final_time) {
+        detectExplosions(_currentSimTime, response, transform);
+        drawScene(_currentSimTime, response, transform, indexCache);
+
+        if (_currentSimTime < response.final_time) {
             _rafId = requestAnimationFrame(frame);
         } else {
             _rafId = null;
@@ -56,9 +83,11 @@ export function animate(response) {
     _rafId = requestAnimationFrame(frame);
 }
 
+// ── Coordinate math ───────────────────────────────────────────────────
+
 function computeBounds(response) {
     let xMax = response.battery_position.x;
-    let yMax = 100; // minimum so the zone (y_max=30) is always visible
+    let yMax = 100;
 
     xMax = Math.max(xMax, response.protected_zone.x_max);
 
@@ -75,22 +104,20 @@ function computeBounds(response) {
 function buildTransform(bounds) {
     const scaleX = (CANVAS_W - 2 * MARGIN) / bounds.xMax;
     const scaleY = (CANVAS_H - 2 * MARGIN) / bounds.yMax;
-    // Uniform scale preserves parabola aspect ratio (no distortion)
     const scale = Math.min(scaleX, scaleY);
     return { scale };
 }
 
 function worldToCanvas(wx, wy, t) {
     const cx = MARGIN + wx * t.scale;
-    // Canvas y=0 is at top; world y=0 is at bottom — invert
     const cy = CANVAS_H - MARGIN - wy * t.scale;
     return [cx, cy];
 }
 
-// Returns the snapshot at or just before simTime, or null if entity not yet launched.
-// Advances index incrementally — O(1) amortized over the full animation.
+// Returns snapshot at or just before simTime; null if entity not yet launched.
+// Advances index incrementally — O(1) amortised.
 function getSnapshotAtTime(snapshots, simTime, indexCache, entityId) {
-    if (simTime < snapshots[0].t) return null; // not launched yet
+    if (simTime < snapshots[0].t) return null;
 
     let idx = indexCache[entityId];
     while (idx + 1 < snapshots.length && snapshots[idx + 1].t <= simTime) {
@@ -100,10 +127,11 @@ function getSnapshotAtTime(snapshots, simTime, indexCache, entityId) {
     return snapshots[idx];
 }
 
+// ── Scene drawing ─────────────────────────────────────────────────────
+
 function drawScene(simTime, response, transform, indexCache) {
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-    // Background
     ctx.fillStyle = COLORS.bg;
     ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
@@ -115,15 +143,15 @@ function drawScene(simTime, response, transform, indexCache) {
         drawEntity(traj, simTime, transform, indexCache);
     }
 
+    drawExplosions(simTime);
     drawHUD(simTime);
+    drawStatusHUD(simTime, response);
 }
 
 function drawGround(transform) {
-    const [x0, y0] = worldToCanvas(0, 0, transform);
-    const [x1]     = worldToCanvas(transform.scale === 0 ? CANVAS_W : (CANVAS_W - MARGIN) / transform.scale, 0, transform);
     ctx.beginPath();
-    ctx.moveTo(MARGIN, y0);
-    ctx.lineTo(CANVAS_W - MARGIN, y0);
+    ctx.moveTo(MARGIN, CANVAS_H - MARGIN);
+    ctx.lineTo(CANVAS_W - MARGIN, CANVAS_H - MARGIN);
     ctx.strokeStyle = COLORS.ground;
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -145,26 +173,31 @@ function drawProtectedZone(response, transform) {
 
 function drawBattery(response, transform) {
     const [cx, cy] = worldToCanvas(response.battery_position.x, response.battery_position.y, transform);
-    const size = 8;
+    const size = 10;
 
     ctx.beginPath();
     ctx.moveTo(cx, cy - size);
     ctx.lineTo(cx + size, cy + size);
     ctx.lineTo(cx - size, cy + size);
     ctx.closePath();
-    ctx.fillStyle = COLORS.battery;
+
+    ctx.shadowBlur  = 10;
+    ctx.shadowColor = COLORS.battery;
+    ctx.fillStyle   = COLORS.battery;
     ctx.fill();
+    ctx.shadowBlur  = 0;
+    ctx.shadowColor = 'transparent';
 }
 
 function drawEntity(traj, simTime, transform, indexCache) {
     const snap = getSnapshotAtTime(traj.snapshots, simTime, indexCache, traj.entity_id);
-    if (snap === null) return; // not yet launched
+    if (snap === null) return;
 
     const color = traj.entity_type === 'threat' ? COLORS.threat : COLORS.interceptor;
     const currentIdx = indexCache[traj.entity_id];
     const snapshots = traj.snapshots;
 
-    // Trail from launch point to current position
+    // Trail
     if (currentIdx > 0) {
         ctx.beginPath();
         const [x0, y0] = worldToCanvas(snapshots[0].x, snapshots[0].y, transform);
@@ -180,16 +213,110 @@ function drawEntity(traj, simTime, transform, indexCache) {
         ctx.globalAlpha = 1.0;
     }
 
-    // Current position dot
+    // Current position dot with glow
     const [px, py] = worldToCanvas(snap.x, snap.y, transform);
     ctx.beginPath();
-    ctx.arc(px, py, 4, 0, 2 * Math.PI);
-    ctx.fillStyle = color;
+    ctx.arc(px, py, 5, 0, 2 * Math.PI);
+    ctx.fillStyle   = color;
+    ctx.shadowBlur  = 12;
+    ctx.shadowColor = color;
     ctx.fill();
+    ctx.shadowBlur  = 0;
+    ctx.shadowColor = 'transparent';
 }
+
+// ── Explosions ────────────────────────────────────────────────────────
+
+function detectExplosions(simTime, response, transform) {
+    for (const traj of response.trajectories) {
+        if (traj.entity_type !== 'threat') continue;
+        if (traj.disposition !== 'neutralized') continue;
+        if (_exploredThreats.has(traj.entity_id)) continue;
+
+        const last = traj.snapshots[traj.snapshots.length - 1];
+        if (simTime >= last.t) {
+            _exploredThreats.add(traj.entity_id);
+            const [ex, ey] = worldToCanvas(last.x, last.y, transform);
+            _activeExplosions.push({ x: ex, y: ey, startTime: simTime, duration: 0.4 });
+        }
+    }
+}
+
+function drawExplosions(simTime) {
+    _activeExplosions = _activeExplosions.filter(
+        exp => simTime - exp.startTime < exp.duration
+    );
+
+    const rings = [
+        { delay: 0.00, color: '#fefcbf', maxR: 30 },
+        { delay: 0.08, color: '#f6ad55', maxR: 22 },
+        { delay: 0.16, color: '#dd6b20', maxR: 15 },
+    ];
+
+    for (const exp of _activeExplosions) {
+        const t = (simTime - exp.startTime) / exp.duration;
+
+        for (const ring of rings) {
+            const rt = Math.max(0, t - ring.delay);
+            if (rt <= 0) continue;
+            const radius = 5 + rt * ring.maxR;
+            const alpha  = Math.max(0, 1.0 - rt);
+
+            ctx.beginPath();
+            ctx.arc(exp.x, exp.y, radius, 0, 2 * Math.PI);
+            ctx.fillStyle  = ring.color;
+            ctx.globalAlpha = alpha;
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+// ── HUD overlays ──────────────────────────────────────────────────────
 
 function drawHUD(simTime) {
     ctx.fillStyle = COLORS.hud_text;
-    ctx.font = "500 13px 'Inter', -apple-system, sans-serif";
-    ctx.fillText(`t = ${simTime.toFixed(2)} s`, MARGIN + 4, MARGIN + 4);
+    ctx.font = "500 16px 'Inter', -apple-system, sans-serif";
+    ctx.textAlign = 'left';
+    ctx.fillText(`t = ${simTime.toFixed(2)} s`, MARGIN + 6, MARGIN + 18);
+}
+
+function drawStatusHUD(simTime, response) {
+    const interceptorTrajs = response.trajectories.filter(t => t.entity_type === 'interceptor');
+    const threatTrajs      = response.trajectories.filter(t => t.entity_type === 'threat');
+
+    const fired = interceptorTrajs.filter(
+        t => t.snapshots.length > 0 && t.snapshots[0].t <= simTime
+    ).length;
+    const total = interceptorTrajs.length + response.inventory_remaining;
+
+    const tracked = threatTrajs.filter(t => {
+        const last = t.snapshots[t.snapshots.length - 1];
+        return t.snapshots[0].t <= simTime && simTime < last.t;
+    }).length;
+
+    const lines = [
+        'RADAR: ACTIVE',
+        `INTERCEPTORS: ${fired}/${total}`,
+        `THREATS TRACKED: ${tracked}`,
+    ];
+
+    const lineH   = 18;
+    const padding = 10;
+    const boxW    = 200;
+    const boxH    = lines.length * lineH + padding * 2;
+    const boxX    = CANVAS_W - MARGIN - boxW;
+    const boxY    = MARGIN;
+
+    ctx.fillStyle = 'rgba(15, 20, 25, 0.80)';
+    ctx.fillRect(boxX, boxY, boxW, boxH);
+
+    ctx.fillStyle = '#68d391';
+    ctx.font      = "14px 'Courier New', monospace";
+    ctx.textAlign = 'left';
+    lines.forEach((line, i) => {
+        ctx.fillText(line, boxX + padding, boxY + padding + (i + 1) * lineH - 2);
+    });
+
+    ctx.textAlign = 'left';
 }
