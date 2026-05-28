@@ -14,7 +14,8 @@ El proyecto simula el ciclo completo de una interceptación:
 4.  **Control de Batería:** Un controlador evalúa qué amenazas son más peligrosas para una "zona protegida" y asigna los interceptores disponibles de forma inteligente.
 
 ## Visualización
-*(Se recomienda incluir capturas de pantalla aquí)*
+<img width="1511" height="821" alt="Screenshot 2026-05-28 at 6 55 32 PM" src="https://github.com/user-attachments/assets/79578404-1849-47bd-97cf-8e69309303ed" />
+<img width="1512" height="879" alt="Screenshot 2026-05-28 at 5 30 37 PM" src="https://github.com/user-attachments/assets/6a2856a2-b36d-4156-aeb8-4a4daee79563" />
 
 - **Modo Interactivo:** Una ventana de Matplotlib para ajustar parámetros y ver la física en tiempo real.
 - **Interfaz Web:** Un frontend moderno que se conecta a una API en FastAPI para visualizar las trayectorias.
