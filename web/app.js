@@ -116,7 +116,7 @@ function updateResults(response) {
     document.getElementById('r-leaked').textContent      = s.leaked;
     document.getElementById('r-safe').textContent        = s.safe;
     document.getElementById('r-inventory').textContent   = response.inventory_remaining;
-    document.getElementById('r-time').textContent        = response.final_time.toFixed(1);
+    document.getElementById('r-time').textContent        = response.final_time.toFixed(1) + ' s';
     resultsSection.hidden = false;
 }
 
