@@ -3,14 +3,14 @@ const CANVAS_H = 500;
 const MARGIN = 40;
 
 const COLORS = {
-    bg:          '#f7fafc',
-    ground:      '#a0aec0',
-    zone:        'rgba(229, 62, 62, 0.2)',
-    zone_border: '#e53e3e',
-    battery:     '#2d3748',
-    threat:      '#e53e3e',
-    interceptor: '#38a169',
-    hud_text:    '#1a202c',
+    bg:          '#1a202c',
+    ground:      '#4a5568',
+    zone:        'rgba(252, 129, 129, 0.25)',
+    zone_border: '#fc8181',
+    battery:     '#e2e8f0',
+    threat:      '#fc8181',
+    interceptor: '#68d391',
+    hud_text:    '#e2e8f0',
 };
 
 const canvas = document.getElementById('sim-canvas');
@@ -190,6 +190,6 @@ function drawEntity(traj, simTime, transform, indexCache) {
 
 function drawHUD(simTime) {
     ctx.fillStyle = COLORS.hud_text;
-    ctx.font = '13px monospace';
+    ctx.font = "500 13px 'Inter', -apple-system, sans-serif";
     ctx.fillText(`t = ${simTime.toFixed(2)} s`, MARGIN + 4, MARGIN + 4);
 }
