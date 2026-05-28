@@ -17,8 +17,8 @@ from api.schemas import ScenarioRequest, SystemPreset
 # Scenario geometry constants — mirrored from visualization/interactive.py but not imported
 # from there, keeping api/ decoupled from the matplotlib visualization layer.
 _THREAT_SPEED: float = 100.0     # m/s — fixed for all threats (pedagogical)
-_THREAT_SPACING: float = 600.0   # m  — horizontal gap between threat origins; x2 distance for more realistic geographic separation
-_BATTERY_OFFSET: float = 400.0   # m  — battery sits this far right of the zone centroid; x2 distance for more realistic geographic separation
+_THREAT_SPACING: float = 600.0   # m  — horizontal gap between threat origins
+_BATTERY_OFFSET: float = 900.0   # m  — Battery positioned well behind the protected zone (rear-guard defense).
 _GRAVITY: float = 9.81
 
 DT: float = 0.01

@@ -3,7 +3,6 @@ const CANVAS_H = 800;
 const MARGIN = 40;
 
 const COLORS = {
-    bg:          '#1a202c',
     ground:      '#4a5568',
     zone:        'rgba(252, 129, 129, 0.25)',
     zone_border: '#fc8181',
@@ -22,6 +21,35 @@ let _paused          = false;
 let _speedMultiplier = 1.0;
 let _activeExplosions = [];
 let _exploredThreats  = new Set();
+let _wallTime         = 0;
+
+// ── Deterministic star field (generated once at module load) ──────────
+
+function _seededRng(seed) {
+    let s = seed >>> 0;
+    return () => {
+        s = Math.imul(s, 1664525) + 1013904223 >>> 0;
+        return s / 0x100000000;
+    };
+}
+
+const _stars = (() => {
+    const rng   = _seededRng(0x4e9f2a7b);   // fixed seed → same stars every load
+    const stars = [];
+    const N     = 80;
+    for (let i = 0; i < N; i++) {
+        const twinkle = i < 15;
+        stars.push({
+            x:      rng() * CANVAS_W,
+            y:      rng() * CANVAS_H * 0.72,   // upper 72 % — above typical trajectories
+            r:      0.5 + rng() * 1.0,          // 0.5 – 1.5 px
+            opacity: 0.3 + rng() * 0.6,         // 0.3 – 0.9
+            twinkle,
+            phase:  rng() * Math.PI * 2,
+        });
+    }
+    return stars;
+})();
 
 // ── Public controls ───────────────────────────────────────────────────
 
@@ -59,6 +87,8 @@ export function animate(response) {
     let _currentSimTime = 0;
 
     function frame(ts) {
+        _wallTime = ts / 1000;
+
         if (_lastTs === null) _lastTs = ts;
         const wallDt = (ts - _lastTs) / 1000;
         _lastTs = ts;
@@ -127,15 +157,40 @@ function getSnapshotAtTime(snapshots, simTime, indexCache, entityId) {
     return snapshots[idx];
 }
 
+// ── Background: night sky ─────────────────────────────────────────────
+
+function drawBackground() {
+    // Sky gradient: deep night → slightly lighter near horizon → dark ground
+    const grad = ctx.createLinearGradient(0, 0, 0, CANVAS_H);
+    grad.addColorStop(0,    '#0a0e1a');
+    grad.addColorStop(0.80, '#1a2332');
+    grad.addColorStop(1.0,  '#0d1117');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+
+    // Stars
+    for (const star of _stars) {
+        let alpha = star.opacity;
+        if (star.twinkle) {
+            // Slow, very subtle opacity oscillation
+            alpha = star.opacity * (0.72 + 0.28 * Math.sin(_wallTime * 1.4 + star.phase));
+        }
+        ctx.beginPath();
+        ctx.arc(star.x, star.y, star.r, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(220,235,255,${alpha.toFixed(3)})`;
+        ctx.fill();
+    }
+}
+
 // ── Scene drawing ─────────────────────────────────────────────────────
 
 function drawScene(simTime, response, transform, indexCache) {
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
-    ctx.fillStyle = COLORS.bg;
-    ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-
-    drawGround(transform);
+    // Order: sky → stars → ground band → ground line → zone → battery → entities → explosions → HUD
+    drawBackground();
+    drawGroundBand(transform);
+    drawGroundLine();
     drawProtectedZone(response, transform);
     drawBattery(response, transform);
 
@@ -148,7 +203,14 @@ function drawScene(simTime, response, transform, indexCache) {
     drawStatusHUD(simTime, response);
 }
 
-function drawGround(transform) {
+function drawGroundBand(transform) {
+    // Dark earth strip below the ground line
+    const groundY = CANVAS_H - MARGIN;
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, groundY, CANVAS_W, CANVAS_H - groundY);
+}
+
+function drawGroundLine() {
     ctx.beginPath();
     ctx.moveTo(MARGIN, CANVAS_H - MARGIN);
     ctx.lineTo(CANVAS_W - MARGIN, CANVAS_H - MARGIN);
