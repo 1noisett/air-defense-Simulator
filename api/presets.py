@@ -12,10 +12,7 @@ PRESETS: dict[str, SystemPreset] = {
         id="patriot",
         name="MIM-104 Patriot (PAC-3)",
         country="USA",
-        description=(
-            "Hit-to-kill interceptor optimized for ballistic missiles. "
-            "High acceleration and tight kill radius reflect the PAC-3 kinetic approach."
-        ),
+        description="Hit-to-kill interceptor for ballistic missiles. High acceleration.",
         pn_constant=4.0,
         max_acceleration=450.0,   # ~45G — pedagogical scale
         launch_speed=350.0,       # pedagogical scale; real PAC-3 ~Mach 4
@@ -26,10 +23,7 @@ PRESETS: dict[str, SystemPreset] = {
         id="davids_sling",
         name="David's Sling (Stunner)",
         country="Israel",
-        description=(
-            "Designed for medium- and long-range rockets and cruise missiles. "
-            "Higher N and wider kill radius reflect the dual-use Stunner interceptor."
-        ),
+        description="Medium-to-long range. Higher maneuverability for rockets and cruise.",
         pn_constant=5.0,
         max_acceleration=500.0,   # ~50G — pedagogical scale
         launch_speed=300.0,       # pedagogical scale; real Stunner ~Mach 7
@@ -40,10 +34,7 @@ PRESETS: dict[str, SystemPreset] = {
         id="iris_t",
         name="IRIS-T SLM",
         country="Germany",
-        description=(
-            "Short- to medium-range system with high agility. "
-            "Balanced parameters make it effective against a wide range of aerial threats."
-        ),
+        description="Short-to-medium range with high agility. Balanced parameters.",
         pn_constant=4.5,
         max_acceleration=400.0,   # ~40G — pedagogical scale
         launch_speed=280.0,       # pedagogical scale; real IRIS-T ~Mach 3

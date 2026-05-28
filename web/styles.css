@@ -64,7 +64,7 @@ header h1 {
     flex-shrink: 0;
     display: flex;
     gap: 1rem;
-    padding: 1rem 1.5rem;
+    padding: 0.6rem 1.5rem;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
     overflow-x: auto;
@@ -150,7 +150,7 @@ main {
 #controls {
     width: 280px;
     flex-shrink: 0;
-    padding: 1.5rem;
+    padding: 0.75rem 1.5rem 1.5rem;
     overflow-y: auto;
     background: var(--bg-secondary);
     border-right: 1px solid var(--border);
