@@ -1,65 +1,38 @@
-# Air Defense Simulation
+# Simulación de Defensa Antiaérea
 
-An educational backend simulation of anti-aircraft defense systems. This project focuses on pedagogical clarity, prioritising mathematical understanding over raw performance.
+Este es un simulador educativo de sistemas de defensa contra misiles. El objetivo principal es la claridad pedagógica: cada decisión de diseño prioriza la comprensión matemática sobre el rendimiento.
 
-> **Note:** This project was developed entirely by **Claude Code** (Anthropic) as a demonstration of autonomous software engineering, physical simulation, and full-stack integration.
+> **Créditos:** Este proyecto fue desarrollado íntegramente por **Claude Code** (Anthropic) como una demostración de ingeniería de software autónoma y modelado físico.
 
-## Key Features
+## ¿Cómo funciona?
 
-- **Handwritten Physics Engine:** Built from first principles using only the Python standard library. No `numpy` or `scipy` used in the core logic.
-- **Numerical Integration:** Supports both explicit Euler and 4th-order Runge-Kutta (RK4) integrators with time-dependent state handling.
-- **Guidance Systems:** Implements classical **Proportional Navigation (PN)** for interceptor missiles.
-- **Sensor Simulation:** Includes a range-limited Radar model and a persistent `ThreatTracker` with data association, coasting, and track pruning logic.
-- **Multi-Front-End:**
-    - **Interactive GUI:** Built with Matplotlib widgets for real-time parameter tuning.
-    - **Web API:** A FastAPI-based backend that serves simulation results.
-    - **Modern Web UI:** A Vanilla JS frontend to visualise trajectories and engagement reports.
+El proyecto simula el ciclo completo de una interceptación:
 
-## Tech Stack
+1.  **Física y Trayectorias:** Utiliza un motor de física desde cero (sin bibliotecas externas) que implementa integración numérica **RK4** para una precisión máxima en misiles que realizan maniobras evasivas.
+2.  **Detección y Rastreo:** Un modelo de Radar detecta amenazas en rango, y un sistema de rastreo (`ThreatTracker`) mantiene la identidad de los objetivos, incluso si se pierde la señal momentáneamente (coasting).
+3.  **Guiado PN:** Los interceptores utilizan **Navegación Proporcional**, una técnica real de guiado que busca colisionar con el objetivo basándose en el cambio angular de la línea de visión.
+4.  **Control de Batería:** Un controlador evalúa qué amenazas son más peligrosas para una "zona protegida" y asigna los interceptores disponibles de forma inteligente.
 
-- **Backend:** Python 3.10+ (FastAPI, Pydantic, Pytest)
-- **Visualisation:** Matplotlib
-- **Frontend:** HTML5, CSS3, Vanilla JavaScript
+## Visualización
+*(Se recomienda incluir capturas de pantalla aquí)*
 
-## Project Structure
+- **Modo Interactivo:** Una ventana de Matplotlib para ajustar parámetros y ver la física en tiempo real.
+- **Interfaz Web:** Un frontend moderno que se conecta a una API en FastAPI para visualizar las trayectorias.
 
-- `physics/`: Pure math and domain entities (missiles, threats, vectors).
-- `sensors/`: Radar detection and tracking algorithms.
-- `battery/`: Command and control logic (assessment and assignment).
-- `simulation/`: Orchestration runner and event recording.
-- `api/`: REST endpoints for web integration.
-- `web/`: Frontend assets and visualization logic.
+## Instalación y Uso
 
-## How to Run
-
-### 1. Requirements
-Ensure you have Python 3.10+ installed. It is recommended to use a virtual environment:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 2. Interactive Simulator (Desktop)
-To launch the Matplotlib-based interactive tool:
-```bash
-python3 scripts/run_interactive.py
-```
-
-### 3. Web Application
-To run the API and the web interface:
-```bash
-python3 scripts/run_api.py
-```
-Then visit `http://localhost:8000` in your browser.
-
-## Engineering Standards
-
-This project adheres to strict architectural rules defined in `CLAUDE.md`, including:
-- Total decoupling of the physics layer.
-- Full type-hinting across the entire codebase.
-- Comprehensive unit testing suite (pytest).
-- Google-style documentation with SI unit specifications.
+1. Instalar dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Ejecutar simulador de escritorio:
+   ```bash
+   python3 scripts/run_interactive.py
+   ```
+3. Ejecutar servidor web:
+   ```bash
+   python3 scripts/run_api.py
+   ```
 
 ---
-*Created with 🤖 Claude Code.*
+*Creado por 🤖 Claude Code.*
