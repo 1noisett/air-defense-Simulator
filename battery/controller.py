@@ -264,12 +264,22 @@ class BatteryController(Controller):
         tracks: list[Track],
         active: dict[str, Threat],
     ) -> dict[str, str]:
-        """Match each track to its threat by exact position (ideal sensor)."""
+        """Match each track to its threat by exact position (ideal sensor).
+
+        Note:
+            Bijective: each threat is claimed by at most one track. Without
+            this guard, all tracks at the same launch point (t=0) map to the
+            first threat, collapsing the fan into a single engagement.
+        """
         mapping: dict[str, str] = {}
+        claimed_threats: set[str] = set()
         for track in tracks:
             for threat_id, threat in active.items():
+                if threat_id in claimed_threats:
+                    continue
                 if (track.position - threat.position).norm() < _POSITION_MATCH_EPS:
                     mapping[track.track_id] = threat_id
+                    claimed_threats.add(threat_id)
                     break
         return mapping
 

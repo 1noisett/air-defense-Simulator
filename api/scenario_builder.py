@@ -14,16 +14,56 @@ from sensors.tracker import ThreatTracker
 
 from api.schemas import ScenarioRequest, SystemPreset
 
-# Scenario geometry constants — mirrored from visualization/interactive.py but not imported
-# from there, keeping api/ decoupled from the matplotlib visualization layer.
-_THREAT_SPEED: float = 100.0     # m/s — fixed for all threats (pedagogical)
-_THREAT_SPACING: float = 600.0   # m  — horizontal gap between threat origins
-_BATTERY_OFFSET: float = 900.0   # m  — Battery positioned well behind the protected zone (rear-guard defense).
-_GRAVITY: float = 9.81
+# ── Scenario geometry constants ───────────────────────────────────────────────
+_THREAT_SPEED: float    = 100.0   # m/s — base launch speed
+_FAN_HALF_ANGLE: float  = 20.0    # deg — half-width of the threat fan (±20° around center)
+_BATTERY_OFFSET: float  = 600.0   # m   — Battery positioned well behind the protected zone (rear-guard defense).
+_GRAVITY: float         = 9.81
 
-DT: float = 0.01
-MAX_TIME: float = 35.0
+DT: float              = 0.01
+MAX_TIME: float        = 35.0
 _ASSOCIATION_RADIUS: float = 10.0
+
+
+def _fan_angles(center_deg: float, n: int) -> list[float]:
+    """Return n launch angles (degrees) spread ±FAN_HALF_ANGLE around center.
+
+    Args:
+        center_deg: Central angle (deg).
+        n: Number of threats (>= 1).
+
+    Returns:
+        List of n angles clamped to [15, 75] deg, evenly distributed.
+
+    Note:
+        Single threat: [center_deg]. Multiple: uniformly spaced across
+        [center - 20, center + 20], then clamped to physical bounds.
+    """
+    if n == 1:
+        return [max(15.0, min(75.0, center_deg))]
+    return [
+        max(15.0, min(75.0, center_deg - _FAN_HALF_ANGLE + 2 * _FAN_HALF_ANGLE * i / (n - 1)))
+        for i in range(n)
+    ]
+
+
+def _threat_speed(i: int, n: int) -> float:
+    """Return the launch speed for the i-th threat (0-indexed) in a fan of n.
+
+    Speeds vary linearly from 85% to 115% of the base speed across the fan,
+    guaranteeing distinct impact points even for angle-symmetric pairs
+    (e.g. 40° and 50° have the same ballistic range at equal speeds).
+
+    Args:
+        i: Threat index, 0-based.
+        n: Total number of threats in the fan.
+
+    Returns:
+        Launch speed (m/s).
+    """
+    if n == 1:
+        return _THREAT_SPEED
+    return _THREAT_SPEED * (0.85 + 0.30 * i / (n - 1))
 
 
 def build_scenario(
@@ -32,9 +72,16 @@ def build_scenario(
 ) -> tuple[dict[str, Threat], BatteryController, tuple[float, float, float, float], Vector2D]:
     """Construct a fresh simulation scenario from a validated request and hardware preset.
 
+    Geometry — origin fan:
+        All threats launch from the same origin (0, 0) with a fan of angles
+        spread ±20° around req.launch_angle_deg.  Speed varies linearly (85%–115%
+        of base) across the fan so that angle-symmetric threats land at different
+        points, making the fan visually spread out.  The zone and battery are
+        positioned relative to the centroid of expected impact points.
+
     Args:
-        req: Scenario parameters from the HTTP request (threats, inventory, geometry).
-        preset: Defense system parameters (PN constant, speeds, kill radius, radar range).
+        req: Scenario parameters from the HTTP request.
+        preset: Defense system parameters (PN constant, speeds, radar range, …).
 
     Returns:
         Tuple of (threats, controller, zone_bounds, battery_position):
@@ -44,29 +91,35 @@ def build_scenario(
         - battery_position: Vector2D launch site coordinates (m).
 
     Note:
-        Zone is centred on the ballistic impact centroid of the threat salvo.
-        R = v²·sin(2θ)/g — same geometry as InteractiveSimulator._build_scenario.
-        All objects are freshly constructed; no state leaks between simulation runs.
+        Impact centroid: mean of R_i = v_i² · sin(2θ_i) / g.
+        Zone centred on centroid; battery at centroid + BATTERY_OFFSET.
+        All objects freshly constructed; no state leaks between runs.
     """
     integrator = EulerIntegrator()
-    angle_rad = math.radians(req.launch_angle_deg)
-    vx = _THREAT_SPEED * math.cos(angle_rad)
-    vy = _THREAT_SPEED * math.sin(angle_rad)
-    rng = _THREAT_SPEED ** 2 * math.sin(2.0 * angle_rad) / _GRAVITY
-
+    n = req.n_threats
+    angles_deg = _fan_angles(req.launch_angle_deg, n)
     maneuver_amplitude = (req.maneuver_intensity / 100.0) * 8.0
+
+    # Build threats — all from origin, different angles and speeds
     threats: dict[str, Threat] = {}
-    for i in range(req.n_threats):
+    impact_xs: list[float] = []
+    for i, angle_deg in enumerate(angles_deg):
+        speed = _threat_speed(i, n)
+        a = math.radians(angle_deg)
+        vx = speed * math.cos(a)
+        vy = speed * math.sin(a)
+        impact_x = speed ** 2 * math.sin(2.0 * a) / _GRAVITY
+        impact_xs.append(impact_x)
         tid = f"threat_{i + 1:03d}"
         threats[tid] = Threat(
-            Vector2D(i * _THREAT_SPACING, 0.0),
+            Vector2D(0.0, 0.0),
             Vector2D(vx, vy),
             integrator,
             maneuver_amplitude=maneuver_amplitude,
             maneuver_frequency=1.5 * (1.0 + 0.05 * i),
         )
 
-    x_center = rng + _THREAT_SPACING * (req.n_threats - 1) / 2.0
+    x_center = sum(impact_xs) / len(impact_xs)
     half = req.zone_width / 2.0
     zone = RectangularZone(x_center - half, x_center + half, 0.0, 30.0)
     launch_site = Vector2D(x_center + _BATTERY_OFFSET, 0.0)
