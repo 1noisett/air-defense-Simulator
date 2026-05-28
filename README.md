@@ -15,7 +15,8 @@ El proyecto simula el ciclo completo de una interceptación:
 
 ## Visualización
 <img width="1512" height="827" alt="Screenshot 2026-05-28 at 6 55 57 PM" src="https://github.com/user-attachments/assets/e039f1cf-7653-4fc4-9a6b-46e14517ad42" />
-<img width="1512" height="879" alt="Screenshot 2026-05-28 at 5 30 37 PM" src="https://github.com/user-attachments/assets/6a2856a2-b36d-4156-aeb8-4a4daee79563" />
+<img width="1511" height="821" alt="Screenshot 2026-05-28 at 6 55 32 PM" src="https://github.com/user-attachments/assets/0d7c9f39-b1f0-4f59-8a13-157b5433622c" />
+
 
 - **Modo Interactivo:** Una ventana de Matplotlib para ajustar parámetros y ver la física en tiempo real.
 - **Interfaz Web:** Un frontend moderno que se conecta a una API en FastAPI para visualizar las trayectorias.
