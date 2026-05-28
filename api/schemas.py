@@ -24,7 +24,7 @@ class ScenarioRequest(BaseModel):
     n_threats: int = Field(..., ge=1, le=5)
     inventory: int = Field(..., ge=0, le=5)
     launch_angle_deg: float = Field(..., ge=15.0, le=75.0)
-    zone_width: float = Field(..., ge=100.0, le=1000.0)
+    zone_width: float = Field(..., ge=200.0, le=1500.0)
     maneuver_intensity: float = Field(0.0, ge=0.0, le=100.0)
 
 

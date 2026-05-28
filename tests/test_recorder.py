@@ -24,9 +24,9 @@ def test_record_three_snapshots_returns_ordered_list() -> None:
     entity = _make_threat()
 
     recorder.record(0.0, "threat", entity)
-    entity.update(0.1)
+    entity.update(0.0, 0.1)
     recorder.record(1.0, "threat", entity)
-    entity.update(0.1)
+    entity.update(1.0, 0.1)
     recorder.record(2.0, "threat", entity)
 
     trajectory = recorder.get_trajectory("threat")
@@ -86,7 +86,7 @@ def test_snapshots_capture_state_at_call_time() -> None:
     recorder.record(0.0, "e", entity)
     initial_position = Vector2D(entity.position.x, entity.position.y)
 
-    entity.update(1.0)   # move entity significantly
+    entity.update(0.0, 1.0)   # move entity significantly
 
     snapshot = recorder.get_trajectory("e")[0]
     assert snapshot.position == initial_position

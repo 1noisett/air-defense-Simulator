@@ -53,8 +53,10 @@ def coasting_interceptor(dummy_threat: Threat) -> Interceptor:
 def test_velocity_unchanged_after_many_steps(coasting_interceptor: Interceptor) -> None:
     """With N=0 the PN command is zero; velocity must remain constant."""
     v0 = coasting_interceptor.velocity
+    elapsed = 0.0
     for _ in range(STEPS):
-        coasting_interceptor.update(DT)
+        coasting_interceptor.update(elapsed, DT)
+        elapsed += DT
     assert coasting_interceptor.velocity == v0
 
 
@@ -67,8 +69,10 @@ def test_position_follows_linear_motion(coasting_interceptor: Interceptor) -> No
     v0 = coasting_interceptor.velocity
     t = STEPS * DT
 
+    elapsed = 0.0
     for _ in range(STEPS):
-        coasting_interceptor.update(DT)
+        coasting_interceptor.update(elapsed, DT)
+        elapsed += DT
 
     assert math.isclose(coasting_interceptor.position.x, p0.x + v0.x * t, rel_tol=1e-9)
     assert math.isclose(coasting_interceptor.position.y, p0.y + v0.y * t, rel_tol=1e-9)
@@ -97,7 +101,7 @@ def test_compute_acceleration_zero_when_at_target() -> None:
         target=threat,
         N=4.0,
     )
-    assert interceptor.compute_acceleration(shared_pos, shared_vel) == Vector2D(0.0, 0.0)
+    assert interceptor.compute_acceleration(0.0, shared_pos, shared_vel) == Vector2D(0.0, 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +125,7 @@ def test_acceleration_magnitude_within_limit() -> None:
         N=4.0,
         max_acceleration=400.0,
     )
-    acc = interceptor.compute_acceleration(p0, v0)
+    acc = interceptor.compute_acceleration(0.0, p0, v0)
     assert acc.norm() <= 400.0 + 1e-9
 
 
@@ -146,7 +150,7 @@ def test_acceleration_perpendicular_to_los() -> None:
         N=4.0,
     )
     r = threat.position - p0
-    acc = interceptor.compute_acceleration(p0, v0)
+    acc = interceptor.compute_acceleration(0.0, p0, v0)
     assert r.dot(acc) == pytest.approx(0.0, abs=1e-9)
 
 
@@ -172,5 +176,5 @@ def test_zero_los_rate_gives_zero_acceleration() -> None:
         target=threat,
         N=4.0,
     )
-    acc = interceptor.compute_acceleration(p0, v0)
+    acc = interceptor.compute_acceleration(0.0, p0, v0)
     assert acc.norm() == pytest.approx(0.0, abs=1e-12)

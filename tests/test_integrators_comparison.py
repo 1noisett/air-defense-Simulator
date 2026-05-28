@@ -51,8 +51,10 @@ def _run_ballistic(integrator: EulerIntegrator | RK4Integrator) -> float:
         velocity=Vector2D(VX0, VY0),
         integrator=integrator,
     )
+    elapsed = 0.0
     for _ in range(int(30.0 / DT)):
-        threat.update(DT)
+        threat.update(elapsed, DT)
+        elapsed += DT
         if threat.position.y < 0.0:
             return threat.position.x
     raise RuntimeError("Threat never landed — increase max steps")
@@ -79,9 +81,11 @@ def _run_interception(
     )
 
     min_dist: float = math.inf
+    elapsed = 0.0
     for _ in range(int(20.0 / dt)):
-        threat.update(dt)
-        interceptor.update(dt)
+        threat.update(elapsed, dt)
+        interceptor.update(elapsed, dt)
+        elapsed += dt
         dist = (threat.position - interceptor.position).norm()
         if dist < min_dist:
             min_dist = dist
@@ -157,8 +161,10 @@ def test_rk4_exact_for_constant_acceleration() -> None:
             velocity=Vector2D(VX0, VY0),
             integrator=IntegratorClass(),
         )
+        elapsed = 0.0
         for _ in range(steps):
-            threat.update(COARSE_DT)
+            threat.update(elapsed, COARSE_DT)
+            elapsed += COARSE_DT
         return threat.position.x, threat.position.y
 
     euler_x, euler_y = run_to_time(EulerIntegrator)

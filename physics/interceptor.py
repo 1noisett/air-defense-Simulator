@@ -70,7 +70,9 @@ class Interceptor(Entity):
         self._N = N
         self._max_acceleration = max_acceleration
 
-    def compute_acceleration(self, position: Vector2D, velocity: Vector2D) -> Vector2D:
+    def compute_acceleration(
+        self, t: float, position: Vector2D, velocity: Vector2D
+    ) -> Vector2D:
         """Return the PN guidance acceleration command at the given kinematic state.
 
         Implements classical Proportional Navigation in 2D. The interceptor's
@@ -80,13 +82,14 @@ class Interceptor(Entity):
         the duration of the integration step.
 
         Args:
+            t: Simulation time at this integration stage (s).
             position: Interceptor position at this integration stage (m).
             velocity: Interceptor velocity at this integration stage (m/s).
 
         Returns:
             Commanded acceleration vector (m/s²), magnitude ≤ max_acceleration.
             Returns ZERO_ACCELERATION when |r| < sqrt(_RANGE_EPSILON_SQ)
-            (intercept achieved or degenerate geometry).
+            or when closing_speed <= 0 (divergent geometry).
 
         Note:
             Full derivation — let r = r_T − r_I, v = v_T − v_I (relative):
@@ -124,6 +127,12 @@ class Interceptor(Entity):
         # Positive when the range is decreasing (interceptor approaching target).
         closing_speed: float = -r.dot(v_rel) / range_m
 
+        # Guard: only apply PN guidance when range is closing. If range is
+        # increasing (interceptor missed and is flying away), PN would invert
+        # and cause erratic steering.
+        if closing_speed <= 0.0:
+            return ZERO_ACCELERATION
+
         # --- Step 4: LOS rate ------------------------------------------------
         # λ̇ = (r × v_rel) / |r|²   (2D cross product = r_x·v_y − r_y·v_x)
         # Positive when the LOS rotates CCW (target drifting left of the LOS).
@@ -137,11 +146,6 @@ class Interceptor(Entity):
         # --- Step 6: Direction — unit CCW normal to the LOS -----------------
         # r.perpendicular() = (−r_y, r_x), magnitude |r|.
         # Dividing by |r| yields the unit CCW normal n̂_⊥.
-        #
-        # Sign reasoning: choosing n̂_⊥ (CCW) ensures that a positive a_scalar
-        # (λ̇ > 0, target drifting CCW) produces CCW acceleration — the
-        # interceptor turns toward the target. The negative case is symmetric.
-        # Using n̂_CW would invert the guidance and cause divergence.
         n_perp: Vector2D = r.perpendicular() * (1.0 / range_m)
         a_cmd: Vector2D = n_perp * a_scalar
 

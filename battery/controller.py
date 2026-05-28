@@ -19,6 +19,9 @@ from simulation.commands import Command, LaunchCommand, RemoveCommand
 from simulation.controller import Controller
 
 _POSITION_MATCH_EPS: Final[float] = 1e-6
+
+_GRAVITY: Final[float] = 9.81
+"""Gravitational acceleration (m/s²) used for threat trajectory prediction."""
 """Distance (m) below which a track is matched to a threat.
 
 The ideal radar copies each threat's exact position into its detection, and the
@@ -284,10 +287,35 @@ class BatteryController(Controller):
         return mapping
 
     def _build_interceptor(self, track: Track) -> Interceptor:
-        """Construct an Interceptor launched from launch_site toward the track."""
-        direction = track.position - self._launch_site
-        if direction.norm() == 0.0:
+        """Construct an Interceptor aimed at the threat's predicted intercept point.
+
+        Launching horizontally toward a threat at y=0 produces a degenerate LOS
+        (λ̇ ≈ 0, PN has no signal). Using a fixed boost angle avoids this but
+        gives all interceptors the same initial velocity, which causes PN to
+        cross-converge when multiple threats fly similar high-angle trajectories.
+
+        Instead, estimate where the threat will be in T_lead = range/launch_speed
+        seconds (ballistic extrapolation) and aim there. Each interceptor gets a
+        target-specific direction, providing a non-zero initial λ̇ while avoiding
+        cross-targeting between concurrent engagements.
+        """
+        pos = track.position
+        vel = track.velocity
+        to_target = pos - self._launch_site
+        range_m = to_target.norm()
+
+        if range_m > 1.0:
+            t_lead = range_m / self._launch_speed
+            pred = Vector2D(
+                pos.x + vel.x * t_lead,
+                pos.y + vel.y * t_lead - 0.5 * _GRAVITY * t_lead ** 2,
+            )
+            direction = pred - self._launch_site
+            if direction.norm() < 1.0:
+                direction = to_target
+        else:
             direction = Vector2D(0.0, 1.0)
+
         velocity = direction.normalize() * self._launch_speed
         return Interceptor(
             position=self._launch_site,

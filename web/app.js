@@ -52,23 +52,32 @@ async function loadSystems() {
         const card = document.createElement('div');
         card.className = 'system-card';
         card.dataset.systemId = s.id;
+        const maxG = (s.max_acceleration / 9.81).toFixed(0);
         card.innerHTML = `
             <div class="card-icon">${SYSTEM_ICONS[s.id] ?? ''}</div>
             <div class="card-name">${s.name}</div>
             <div class="card-country">${s.country}</div>
             <div class="card-desc">${s.description}</div>
+            <div class="card-stats">
+                <div class="stat"><span class="stat-key">N</span><span class="stat-val">${s.pn_constant.toFixed(1)}</span></div>
+                <div class="stat"><span class="stat-key">SPD</span><span class="stat-val">${s.launch_speed.toFixed(0)} m/s</span></div>
+                <div class="stat"><span class="stat-key">MAX</span><span class="stat-val">${maxG} G</span></div>
+                <div class="stat"><span class="stat-key">KILL</span><span class="stat-val">${s.kill_radius.toFixed(0)} m</span></div>
+            </div>
         `;
-        card.addEventListener('click', () => selectCard(card));
+        card.addEventListener('click', () => selectCard(s));
         container.appendChild(card);
     }
 
-    const first = container.querySelector('.system-card');
-    if (first) selectCard(first);
+    if (systems.length > 0) selectCard(systems[0]);
 }
 
-function selectCard(card) {
-    document.querySelectorAll('.system-card').forEach(c => c.classList.remove('selected'));
-    card.classList.add('selected');
+function selectCard(system) {
+    document.querySelectorAll('.system-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.systemId === system.id);
+    });
+    document.getElementById('as-name').textContent    = system.name;
+    document.getElementById('as-country').textContent = system.country;
 }
 
 // ── Inputs ────────────────────────────────────────────────────────────
@@ -103,13 +112,45 @@ async function runSimulation() {
             return;
         }
         const data = await res.json();
-        animate(data);
+        resetHUD(data);
+        animate(data, simTime => updateHUD(simTime, data));
         updateResults(data);
     } catch (e) {
         showError(`Network error: ${e.message}`);
     } finally {
         btn.disabled = false;
     }
+}
+
+// ── HUD (right-sidebar live telemetry) ────────────────────────────────
+
+function totalInterceptors(response) {
+    return response.trajectories.filter(t => t.entity_type === 'interceptor').length
+        + response.inventory_remaining;
+}
+
+function resetHUD(response) {
+    document.getElementById('hud-radar').textContent        = 'ACTIVE';
+    document.getElementById('hud-clock').textContent        = '0.00 s';
+    document.getElementById('hud-interceptors').textContent = `0/${totalInterceptors(response)}`;
+    document.getElementById('hud-threats').textContent      = '0';
+}
+
+function updateHUD(simTime, response) {
+    const interceptorTrajs = response.trajectories.filter(t => t.entity_type === 'interceptor');
+    const threatTrajs      = response.trajectories.filter(t => t.entity_type === 'threat');
+
+    const fired = interceptorTrajs.filter(
+        t => t.snapshots.length > 0 && t.snapshots[0].t <= simTime
+    ).length;
+    const tracked = threatTrajs.filter(t => {
+        const last = t.snapshots[t.snapshots.length - 1];
+        return t.snapshots[0].t <= simTime && simTime < last.t;
+    }).length;
+
+    document.getElementById('hud-clock').textContent        = simTime.toFixed(2) + ' s';
+    document.getElementById('hud-interceptors').textContent = `${fired}/${totalInterceptors(response)}`;
+    document.getElementById('hud-threats').textContent      = tracked;
 }
 
 function updateResults(response) {

@@ -1,5 +1,5 @@
 const CANVAS_W = 1600;
-const CANVAS_H = 800;
+const CANVAS_H = 600;
 const MARGIN = 40;
 
 const COLORS = {
@@ -63,7 +63,7 @@ export function setSpeed(multiplier) {
 
 // ── Main animation entry point ────────────────────────────────────────
 
-export function animate(response) {
+export function animate(response, onFrame) {
     if (_rafId !== null) {
         cancelAnimationFrame(_rafId);
         _rafId = null;
@@ -102,6 +102,7 @@ export function animate(response) {
 
         detectExplosions(_currentSimTime, response, transform);
         drawScene(_currentSimTime, response, transform, indexCache);
+        if (onFrame) onFrame(_currentSimTime);
 
         if (_currentSimTime < response.final_time) {
             _rafId = requestAnimationFrame(frame);
@@ -116,6 +117,12 @@ export function animate(response) {
 // ── Coordinate math ───────────────────────────────────────────────────
 
 function computeBounds(response) {
+    // Hard ceilings derived from known geometry. An outlier trajectory (e.g.
+    // a divergent interceptor) is allowed to leave the visible area instead
+    // of inflating the scale and squashing everything else into a few pixels.
+    const X_CEILING = response.battery_position.x * 1.10;
+    const Y_CEILING = 800;
+
     let xMax = response.battery_position.x;
     let yMax = 100;
 
@@ -123,8 +130,8 @@ function computeBounds(response) {
 
     for (const traj of response.trajectories) {
         for (const s of traj.snapshots) {
-            if (s.x > xMax) xMax = s.x;
-            if (s.y > yMax) yMax = s.y;
+            if (s.x > xMax && s.x <= X_CEILING) xMax = s.x;
+            if (s.y > yMax && s.y <= Y_CEILING) yMax = s.y;
         }
     }
 
@@ -199,8 +206,6 @@ function drawScene(simTime, response, transform, indexCache) {
     }
 
     drawExplosions(simTime);
-    drawHUD(simTime);
-    drawStatusHUD(simTime, response);
 }
 
 function drawGroundBand(transform) {
@@ -334,51 +339,3 @@ function drawExplosions(simTime) {
     }
 }
 
-// ── HUD overlays ──────────────────────────────────────────────────────
-
-function drawHUD(simTime) {
-    ctx.fillStyle = COLORS.hud_text;
-    ctx.font = "500 16px 'Inter', -apple-system, sans-serif";
-    ctx.textAlign = 'left';
-    ctx.fillText(`t = ${simTime.toFixed(2)} s`, MARGIN + 6, MARGIN + 18);
-}
-
-function drawStatusHUD(simTime, response) {
-    const interceptorTrajs = response.trajectories.filter(t => t.entity_type === 'interceptor');
-    const threatTrajs      = response.trajectories.filter(t => t.entity_type === 'threat');
-
-    const fired = interceptorTrajs.filter(
-        t => t.snapshots.length > 0 && t.snapshots[0].t <= simTime
-    ).length;
-    const total = interceptorTrajs.length + response.inventory_remaining;
-
-    const tracked = threatTrajs.filter(t => {
-        const last = t.snapshots[t.snapshots.length - 1];
-        return t.snapshots[0].t <= simTime && simTime < last.t;
-    }).length;
-
-    const lines = [
-        'RADAR: ACTIVE',
-        `INTERCEPTORS: ${fired}/${total}`,
-        `THREATS TRACKED: ${tracked}`,
-    ];
-
-    const lineH   = 18;
-    const padding = 10;
-    const boxW    = 200;
-    const boxH    = lines.length * lineH + padding * 2;
-    const boxX    = CANVAS_W - MARGIN - boxW;
-    const boxY    = MARGIN;
-
-    ctx.fillStyle = 'rgba(15, 20, 25, 0.80)';
-    ctx.fillRect(boxX, boxY, boxW, boxH);
-
-    ctx.fillStyle = '#68d391';
-    ctx.font      = "14px 'Courier New', monospace";
-    ctx.textAlign = 'left';
-    lines.forEach((line, i) => {
-        ctx.fillText(line, boxX + padding, boxY + padding + (i + 1) * lineH - 2);
-    });
-
-    ctx.textAlign = 'left';
-}

@@ -43,37 +43,42 @@ class Entity(ABC):
         self.velocity = velocity
         self._integrator = integrator
 
-    def update(self, dt: float) -> None:
+    def update(self, t: float, dt: float) -> None:
         """Advance entity state by one time step.
 
         Passes self.compute_acceleration as a callable to the integrator.
-        The integrator calls it with intermediate (position, velocity) pairs
-        as needed by its algorithm. self.position and self.velocity are only
-        updated once, at the end, with the final result.
+        The integrator calls it with intermediate (time, position, velocity)
+        tuples as needed by its algorithm. self.position and self.velocity
+        are only updated once, at the end, with the final result.
 
         Args:
+            t: Current simulation time (s) at the start of the step.
             dt: Time step duration (s). Must be positive.
         """
         self.position, self.velocity = self._integrator.step(
-            self.position, self.velocity, self.compute_acceleration, dt
+            t, self.position, self.velocity, self.compute_acceleration, dt
         )
 
     @abstractmethod
-    def compute_acceleration(self, position: Vector2D, velocity: Vector2D) -> Vector2D:
+    def compute_acceleration(
+        self, t: float, position: Vector2D, velocity: Vector2D
+    ) -> Vector2D:
         """Return the net acceleration at the given kinematic state.
 
-        Called by the integrator once per stage. Subclasses implement
+        Called by the integrator once or more per stage. Subclasses implement
         domain-specific force models (gravity, thrust, proportional navigation).
 
         The arguments represent the state at a particular integration stage —
         not necessarily the entity's current self.position / self.velocity.
-        Implementations must use these arguments, not self.position, to
-        ensure correctness with multi-stage integrators.
+        Implementations must use these arguments, not self.position or
+        any internal elapsed-time counters, to ensure correctness with
+        multi-stage integrators.
 
         Entity parameters fixed during the step (e.g., target position,
         navigation constant) may still be read from self.
 
         Args:
+            t: Simulation time at this integration stage (s).
             position: Position at this integration stage (m).
             velocity: Velocity at this integration stage (m/s).
 

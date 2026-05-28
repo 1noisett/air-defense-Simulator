@@ -62,7 +62,7 @@ def _simulate_threat() -> tuple[float, float, float]:
     while threat.position.y >= 0.0:
         # Record peak altitude before stepping (first step starts at y=0,
         # so we update the max after position changes).
-        threat.update(DT)
+        threat.update(elapsed, DT)
         elapsed += DT
         if threat.position.y > max_height:
             max_height = threat.position.y
@@ -127,7 +127,7 @@ def test_compute_acceleration_is_gravity() -> None:
         integrator=EulerIntegrator(),
     )
     # Gravity is state-independent; arguments are required by the interface but ignored.
-    acc = threat.compute_acceleration(Vector2D(0.0, 100.0), Vector2D(0.0, 0.0))
+    acc = threat.compute_acceleration(0.0, Vector2D(0.0, 100.0), Vector2D(0.0, 0.0))
     assert acc == Vector2D(0.0, -9.81)
 
 
@@ -156,8 +156,10 @@ def test_threat_with_maneuver() -> None:
             maneuver_amplitude=5.0,
             maneuver_frequency=2.0,
         )
+        elapsed = 0.0
         while threat.position.y >= 0.0:
-            threat.update(DT)
+            threat.update(elapsed, DT)
+            elapsed += DT
         return threat.position.x
 
     range1 = _run_maneuvering()
@@ -182,7 +184,7 @@ def test_single_update_step_matches_euler() -> None:
         velocity=Vector2D(VX0, VY0),
         integrator=EulerIntegrator(),
     )
-    threat.update(DT)
+    threat.update(0.0, DT)
 
     expected_vx = VX0
     expected_vy = VY0 + (-9.81) * DT

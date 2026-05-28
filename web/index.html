@@ -48,9 +48,9 @@
             <div class="slider-group">
                 <div class="slider-header">
                     <span class="label-text">Zone width</span>
-                    <span class="label-value" id="zone-width-val">350 m</span>
+                    <span class="label-value" id="zone-width-val">700 m</span>
                 </div>
-                <input type="range" id="zone-width" value="350" min="100" max="1000">
+                <input type="range" id="zone-width" value="700" min="200" max="1500">
             </div>
 
             <div class="slider-group">
@@ -62,6 +62,34 @@
             </div>
 
             <button id="simulate-btn">Simulate</button>
+
+            <p id="error-msg" hidden></p>
+        </aside>
+
+        <section id="canvas-area">
+            <canvas id="sim-canvas" width="1600" height="600"></canvas>
+            <div id="canvas-controls">
+                <button id="pause-btn" title="Pause / Play">⏸</button>
+                <span class="ctrl-label">Speed</span>
+                <input type="range" id="speed-slider" min="0.5" max="2" step="0.5" value="1">
+                <span id="speed-label">1×</span>
+            </div>
+        </section>
+
+        <aside id="telemetry">
+            <section id="active-system">
+                <h2>Active system</h2>
+                <div class="as-name" id="as-name">—</div>
+                <div class="as-country" id="as-country">—</div>
+            </section>
+
+            <section id="hud-panel">
+                <h2>Live status</h2>
+                <div class="hud-row"><span class="hud-key">RADAR</span><span class="hud-val" id="hud-radar">STANDBY</span></div>
+                <div class="hud-row"><span class="hud-key">CLOCK</span><span class="hud-val" id="hud-clock">0.00 s</span></div>
+                <div class="hud-row"><span class="hud-key">INTERCEPTORS</span><span class="hud-val" id="hud-interceptors">0/0</span></div>
+                <div class="hud-row"><span class="hud-key">THREATS</span><span class="hud-val" id="hud-threats">0</span></div>
+            </section>
 
             <section id="results" hidden>
                 <h2>Results</h2>
@@ -86,19 +114,7 @@
                     <span class="result-value" id="r-time"></span>
                 </div>
             </section>
-
-            <p id="error-msg" hidden></p>
         </aside>
-
-        <section id="canvas-area">
-            <canvas id="sim-canvas" width="1600" height="800"></canvas>
-            <div id="canvas-controls">
-                <button id="pause-btn" title="Pause / Play">⏸</button>
-                <span class="ctrl-label">Speed</span>
-                <input type="range" id="speed-slider" min="0.5" max="2" step="0.5" value="1">
-                <span id="speed-label">1×</span>
-            </div>
-        </section>
     </main>
 
     <script type="module" src="app.js"></script>

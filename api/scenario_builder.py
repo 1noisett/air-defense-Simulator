@@ -17,8 +17,27 @@ from api.schemas import ScenarioRequest, SystemPreset
 # ── Scenario geometry constants ───────────────────────────────────────────────
 _THREAT_SPEED: float    = 100.0   # m/s — base launch speed
 _FAN_HALF_ANGLE: float  = 20.0    # deg — half-width of the threat fan (±20° around center)
-_BATTERY_OFFSET: float  = 600.0   # m   — Battery positioned well behind the protected zone (rear-guard defense).
+_BATTERY_OFFSET: float  = 200.0   # m   — Battery positioned just behind the furthest impact point (close enough for PN convergence).
 _GRAVITY: float         = 9.81
+_THREAT_MANEUVER_SCALE: float = 30.0
+"""m/s² — peak lateral acceleration at maneuver_intensity=100%.
+
+At 8.0 (legacy default) the zigzag is invisible on screen — PN absorbs it
+without effort, and the maneuver slider has no perceptible effect. 30 m/s²
+(~3× gravity) makes the threat's lateral oscillation clearly visible in the
+trajectory trail while still well within the interceptor's PN envelope.
+"""
+
+_THREAT_ORIGIN_SPREAD: float = 2.0
+"""m — tiny x-offset between adjacent threats at t=0.
+
+Visually a fan looks like a single origin (2 m on a ~1500 m field is sub-pixel)
+but it keeps the tracker's initial state non-degenerate. With a literal shared
+origin all tracks spawn at (0, 0) and the greedy nearest-neighbour association
+becomes ambiguous within a couple of frames — detections can drift onto a
+neighbouring track and silently swap target identity, leading interceptors to
+chase the wrong threat.
+"""
 
 DT: float              = 0.01
 MAX_TIME: float        = 35.0
@@ -98,7 +117,7 @@ def build_scenario(
     integrator = EulerIntegrator()
     n = req.n_threats
     angles_deg = _fan_angles(req.launch_angle_deg, n)
-    maneuver_amplitude = (req.maneuver_intensity / 100.0) * 8.0
+    maneuver_amplitude = (req.maneuver_intensity / 100.0) * _THREAT_MANEUVER_SCALE
 
     # Build threats — all from origin, different angles and speeds
     threats: dict[str, Threat] = {}
@@ -112,7 +131,7 @@ def build_scenario(
         impact_xs.append(impact_x)
         tid = f"threat_{i + 1:03d}"
         threats[tid] = Threat(
-            Vector2D(0.0, 0.0),
+            Vector2D(i * _THREAT_ORIGIN_SPREAD, 0.0),
             Vector2D(vx, vy),
             integrator,
             maneuver_amplitude=maneuver_amplitude,
@@ -122,7 +141,8 @@ def build_scenario(
     x_center = sum(impact_xs) / len(impact_xs)
     half = req.zone_width / 2.0
     zone = RectangularZone(x_center - half, x_center + half, 0.0, 30.0)
-    launch_site = Vector2D(x_center + _BATTERY_OFFSET, 0.0)
+    x_max_impact = max(impact_xs)
+    launch_site = Vector2D(x_max_impact + _BATTERY_OFFSET, 0.0)
 
     controller = BatteryController(
         threats=threats,

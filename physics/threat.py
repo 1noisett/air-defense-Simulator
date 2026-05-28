@@ -53,26 +53,14 @@ class Threat(Entity):
         super().__init__(position, velocity, integrator)
         self.maneuver_amplitude: float = maneuver_amplitude
         self.maneuver_frequency: float = maneuver_frequency
-        self._elapsed_time: float = 0.0
 
-    def update(self, dt: float) -> None:
-        """Advance state by one time step, accumulating elapsed time.
-
-        Args:
-            dt: Time step duration (s). Must be positive.
-
-        Note:
-            _elapsed_time is incremented after the integrator step so that
-            compute_acceleration uses the time at the START of each step —
-            consistent with forward Euler semantics.
-        """
-        super().update(dt)
-        self._elapsed_time += dt
-
-    def compute_acceleration(self, position: Vector2D, velocity: Vector2D) -> Vector2D:
+    def compute_acceleration(
+        self, t: float, position: Vector2D, velocity: Vector2D
+    ) -> Vector2D:
         """Return gravitational acceleration with optional lateral sinusoidal perturbation.
 
         Args:
+            t: Simulation time at this integration stage (s).
             position: Position at this integration stage (m). Not used —
                 gravity and the maneuver are independent of altitude in this model.
             velocity: Velocity at this integration stage (m/s). Not used —
@@ -85,12 +73,12 @@ class Threat(Entity):
 
         Note:
             perturbation_x = A · sin(ω · t)
-            where A = maneuver_amplitude, ω = maneuver_frequency, t = _elapsed_time.
+            where A = maneuver_amplitude, ω = maneuver_frequency.
             O(1) time and space.
         """
         if self.maneuver_amplitude == 0.0:
             return GRAVITY
         perturbation_x = self.maneuver_amplitude * math.sin(
-            self.maneuver_frequency * self._elapsed_time
+            self.maneuver_frequency * t
         )
         return Vector2D(perturbation_x, -9.81)

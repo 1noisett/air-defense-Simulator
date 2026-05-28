@@ -61,11 +61,27 @@ def test_two_threats_keep_distinct_stable_tracks() -> None:
 def test_unmatched_track_is_retained() -> None:
     """A track with no detection this frame coasts (is retained, not dropped)."""
     tracker = ThreatTracker(association_radius=50.0)
-    tracker.update([_det(0.0, 100.0)], t=0.0)
+    # Velocity is 10 m/s right
+    tracker.update([_det(0.0, 100.0, vx=10.0)], t=0.0)
     tracks = tracker.update([], t=0.1)          # no detections this frame
     assert len(tracks) == 1
     assert tracks[0].track_id == "track_001"
+    # Coasted: 0.0 + 10.0 * 0.1 = 1.0
+    assert tracks[0].position.x == pytest.approx(1.0)
     assert tracks[0].last_update_time == pytest.approx(0.0)   # not refreshed
+    assert tracks[0].age == 1
+
+
+def test_stale_track_is_pruned() -> None:
+    """A track not seen for > max_coasting_time is dropped."""
+    tracker = ThreatTracker(association_radius=50.0, max_coasting_time=0.5)
+    tracker.update([_det(0.0, 100.0)], t=0.0)
+    
+    # Still there at t=0.4 (within 0.5s window)
+    assert len(tracker.update([], t=0.4)) == 1
+    
+    # Gone at t=0.6 (0.6 - 0.0 > 0.5)
+    assert len(tracker.update([], t=0.6)) == 0
 
 
 def test_get_track_returns_track_or_none() -> None:
@@ -88,3 +104,5 @@ def test_track_predict_impact_matches_ballistics() -> None:
 def test_non_positive_radius_raises() -> None:
     with pytest.raises(ValueError):
         ThreatTracker(association_radius=0.0)
+    with pytest.raises(ValueError):
+        ThreatTracker(max_coasting_time=0.0)

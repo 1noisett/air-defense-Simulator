@@ -184,7 +184,7 @@ class SimulationRunner:
                         self._entities.pop(command.entity_id, None)
 
             for entity in list(self._entities.values()):
-                entity.update(self._dt)
+                entity.update(t, self._dt)
             t += self._dt
 
             if self._stop_condition is not None:
