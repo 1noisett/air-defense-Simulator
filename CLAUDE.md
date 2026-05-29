@@ -176,3 +176,6 @@ def test_projectile_range_matches_analytical():
 - Networking or real-time communication.
 - 3D geometry (deferred, not abandoned).
 - External dependencies in `physics/` (numpy, scipy, etc.).
+
+## Comments
+Use comments sparingly. Only comment complex code
