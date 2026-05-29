@@ -2,7 +2,7 @@
 
 Este es un simulador educativo de sistemas de defensa contra misiles. El objetivo principal es la claridad pedagógica: cada decisión de diseño prioriza la comprensión matemática sobre el rendimiento.
 
-> **Créditos:** Este proyecto fue desarrollado íntegramente por **Claude Code** (Anthropic) como una demostración de ingeniería de software autónoma y modelado físico.
+> **Créditos:** Este proyecto fue diseñado e implementado íntegramente por **Claude Code** (Anthropic), actuando como agente de desarrollo principal bajo la dirección y supervisión del autor. Una demostración de ingeniería de software autónoma y modelado físico.
 
 ## ¿Cómo funciona?
 
